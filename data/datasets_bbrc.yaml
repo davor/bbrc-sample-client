@@ -1,0 +1,39 @@
+{
+
+  "SAL": {
+    "dataset": "http://toxcreate3.in-silico.ch:8086/dataset/4"
+  },
+  
+  "MOU": {
+    "dataset": "http://toxcreate3.in-silico.ch:8086/dataset/1"
+  },
+  
+  "MCC": {
+    "dataset": "http://toxcreate3.in-silico.ch:8086/dataset/3"
+  },
+
+  "RAT": {
+    "dataset": "http://toxcreate3.in-silico.ch:8086/dataset/2"
+  },
+
+  "BB": {
+    "dataset": "http://toxcreate3.in-silico.ch:8086/dataset/"
+  },
+
+  "NCT": {
+    "dataset": "http://toxcreate3.in-silico.ch:8086/dataset/"
+  },
+
+  "YOSH": {
+    "dataset": "http://toxcreate3.in-silico.ch:8086/dataset/"
+  },
+
+  "YOSH2": {
+    "dataset": "http://toxcreate3.in-silico.ch:8086/dataset/"
+  },
+
+  "KAZ": {
+    "dataset": "http://toxcreate3.in-silico.ch:8086/dataset/5"
+  }
+
+}
