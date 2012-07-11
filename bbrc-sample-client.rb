@@ -1,66 +1,12 @@
-# # Author: Andreas Maunz, David Vorgrimmler
+# bbrc-sample-client
+# Author: Andreas Maunz, David Vorgrimmler
+# 
 
 require 'rubygems'
 require 'opentox-ruby'
 require 'yaml'
 require 'csv'
-
-def check_params(args, dataset_names)
-  if ! (dataset_names.include? args[1])
-    puts "dataset name has to exist in dataset.yaml"
-    exit 1
-  end
-
-  if args[2].to_i <= 2
-    puts "num_boots must be a natural number higher than 30"
-    exit 1
-  end
- 
-  if args[3].to_s != "true" && args[3].to_s != "false"
-    puts "backbone must be 'true' or 'false'."
-    exit 1
-  end
- 
- if args[4].gsub(/[pmc]/, '').to_i <= 0
-    puts "min_frequency must be a natural number X (optional with description Xpm or Xpc)"
-    exit 1
-  end
-
-  if ! (['bbrc', 'mean', 'mle'].include? args[5])
-    puts "method must be 'bbrc', 'mean' or 'mle'"
-    exit 1
-  end
- 
-  if args[6].to_s != "true" && args[6].to_s != "false"
-    puts "find_min_frequency must be 'true' or 'false'"
-    exit 1
-  end
-  
-  if args[7].to_i < 1
-    puts "start_seed must be a natural number"
-    exit 1
-  end
-
-  if args[8].to_i < 1
-    puts "end_seed must be a natural number"
-    exit 1
-  end
-
-  if  args[7].to_i > args[8].to_i
-    puts "start_seed has to be smaller than end_seed"
-    exit 1
-  end
-
-  if ! (args[9].to_f <= 0.9 && args[9].to_f >= 0.1)
-    puts "split_ratio must be between 0.1 and 0.9"
-    exit 1
-  end
-
-  if ! (args[10].to_f <= 0.1 && args[10].to_f >= 0.0005)
-    puts "time_per_cmpd must be between 0.0005 and 0.1"
-    exit 1
-  end
-end
+require 'lib/bbrc-sample-client-lib.rb'
 
 if ARGV.size != 11 
   puts "Args: path/to/dataset.yaml ds_name num_boots backbone min_frequency method find_min_frequency start_seed end_seed split_ratio time_per_cmpd"
@@ -81,8 +27,7 @@ ds_names = ds.keys
 
 check_params(ARGV, ds_names)
 
-subjectid = nil
-
+# Setting parameter 
 ds_name = ARGV[1] # e.g. MOU,RAT
 num_boots = ARGV[2] # integer, 100 recommended
 backbone = ARGV[3] # true/false
@@ -94,13 +39,15 @@ end_seed = ARGV[8].to_i #integer (>= start_seed)
 split_ratio = ARGV[9].to_f # float, default 0.5 (>=0.1 and <=0.9)
 time_per_cmpd = ARGV[10].to_f  # float, 0.003 (secounds) recommended but this is only an experience value.
 hits = false
-
+stratified = true
+subjectid = nil
 ds_uri = ds[ds_name]["dataset"]
-
 finished_rounds = 0
+
 result1 = []
 result2 = []
 metadata = []
+keep_ds = []
 
 statistics = {}
 statistics[:t_ds_nr_com] = []
@@ -128,8 +75,8 @@ begin
     puts "                       ----- split ds -----"
     split_params = {}
     split_params["dataset_uri"] = ds_uri
-    split_params["prediction_feature"] = (ds_uri.to_s + "/feature/1")
-    split_params["stratified"] = true 
+    split_params["prediction_feature"] = get_prediction_feature(ds_uri, subjectid)
+    split_params["stratified"] = stratified 
     split_params["split_ratio"] = split_ratio
     split_params["random_seed"] = i
     puts "[#{Time.now.iso8601(4).to_s}] Split params: #{split_params.to_yaml}"
@@ -148,68 +95,18 @@ begin
     #################################
 
     if find_min_frequency.to_s == "true"
+      
       min_params = {}
       min_params["dataset_uri"] = datasets[:training_ds]
-
-      ds = OpenTox::Dataset.find(datasets[:training_ds])
-      ds_nr_com = ds.compounds.size
-
       min_params["backbone"] = backbone
-      durations = []
-      x = ds_nr_com
-      ds_result_nr_f = 0
-      y = x
-      y_old = 0
-      #  puts
-      #  puts "----- Initialization: -----"
-      while ds_result_nr_f < (ds_nr_com/4).to_i do
-        y_old = y
-        y = x
-        x = (x/2).to_i
-        min_params["min_frequency"] = x
-        t = Time.now
-        result_uri = OpenTox::RestClientWrapper.post( File.join(CONFIG[:services]["opentox-algorithm"],"fminer/bbrc/"), min_params )
-        durations << Time.now - t
-        ds_result = OpenTox::Dataset.find(result_uri)
-        del_ds << ds_result.uri
-        ds_result_nr_f = ds_result.features.size
-      end  
+      min_params["time_per_cmpd"] = time_per_cmpd
+      min_params["upper_limit"] = 0.5
+      min_params["lower_limit"] = 0.1
+      min_params["subjectid"] = subjectid
 
-      #  puts
-      #  puts "----- Main phase: -----"
-      max_duration = durations[0] +(ds_nr_com.to_f * time_per_cmpd)
-      min_params["min_frequency"] = y
-      y = y_old
-      found = false
-      cnt = 0
-      min_f = min_params["min_frequency"]
-      # Search for min_frequency with following heuristic procedure. If no good min_frequency found the delivered value(from the arguments) is used.
-      while found == false || cnt == 4 do
-        if min_f == min_params["min_frequency"]
-          cnt = cnt + 1
-        end
-        min_f = min_params["min_frequency"]
-        t = Time.now
-        result_uri = OpenTox::RestClientWrapper.post( File.join(CONFIG[:services]["opentox-algorithm"],"fminer/bbrc/"), min_params )
-        durations << Time.now - t
-        ds_result = OpenTox::Dataset.find(result_uri)
-        del_ds << ds_result.uri
-        ds_result_nr_f = ds_result.features.size
-        # Check if number of features is max half and min one-tenth of the number of compounds and performed in accaptable amount of time
-        if ds_result_nr_f.to_i < (ds_nr_com/2).to_i && ds_result_nr_f.to_i > (ds_nr_com/10).to_i
-          if durations.last < max_duration
-            found = true
-            min_freq = min_params["min_frequency"]
-          else
-            x = min_params["min_frequency"]
-            min_params["min_frequency"] = ((min_params["min_frequency"]+y)/2).to_i
-          end
-        else
-          y = min_params["min_frequency"]
-          min_params["min_frequency"] = ((x+min_params["min_frequency"])/2).to_i
-        end
-      end
-    end
+      good_min_freq = detect_min_frequency(min_params)
+      min_freq = good_min_freq  unless good_min_freq.nil?
+    end 
 
     #################################
     # BBRC SAMPLE
@@ -258,35 +155,13 @@ begin
     # COMPARE pValues
     #################################
     puts "                 ----- pValue comparision -----"
-    bbrc_ds = OpenTox::Dataset.find(feature_dataset_uri)
-    bbrc_ds.save(subjectid)
-    del_ds << bbrc_ds.uri
-    bbrc_smarts_pValues = {}
-    bbrc_ds.features.each do |f, values|
-      if values[RDF::type].include?(OT.Substructure)
-        bbrc_smarts_pValues[values[OT::smarts]] =  values[OT::pValue]
-      end
-    end 
+    keep_ds << "random_seed: #{i}"
+    bbrc_smarts_pValues = get_pValues(feature_dataset_uri, subjectid)
+    keep_ds << feature_dataset_uri
 
-    match_ds = OpenTox::Dataset.find(matched_dataset_uri)
-    matched_smarts_pValues = {}
-    match_ds.features.each do |f, values|
-      if values[RDF::type].include?(OT.Substructure)
-        matched_smarts_pValues[values[OT::smarts]] =  values[OT::pValue]
-      end
-    end
-
-    sum_E1 = 0.0
-    sum_E2 = 0.0
-    bbrc_smarts_pValues.each do |s, p|
-      if matched_smarts_pValues.include?(s)
-        dif = (p.to_f - matched_smarts_pValues[s].to_f)
-        sum_E1 = sum_E1 + dif 
-        sum_E2 = sum_E2 + dif.abs
-      end
-    end
-    sum_E1 = sum_E1/bbrc_smarts_pValues.size
-    sum_E2 = sum_E2/bbrc_smarts_pValues.size 
+    matched_smarts_pValues = get_pValues(matched_dataset_uri, subjectid)
+    keep_ds << matched_dataset_uri 
+    sum_E1, sum_E2 = calc_E1_E2(bbrc_smarts_pValues, matched_smarts_pValues)
     puts "[#{Time.now.iso8601(4).to_s}] Sum pValue difference (E1): #{sum_E1}"
     puts "[#{Time.now.iso8601(4).to_s}] Squared sum pValue difference (E2): #{sum_E2}"
     $stdout.flush
@@ -299,8 +174,9 @@ begin
     
     # save statistics
     t_ds = OpenTox::Dataset.find(datasets[:training_ds])
-    statistics[:t_ds_nr_com] << ds.compounds.size.to_f
+    statistics[:t_ds_nr_com] << t_ds.compounds.size.to_f
   
+    bbrc_ds = OpenTox::Dataset.find(feature_dataset_uri, subjectid)
     statistics[:bbrc_ds_nr_com] << bbrc_ds.compounds.size.to_f
     statistics[:bbrc_ds_nr_f] << bbrc_ds.features.size.to_f
     statistics[:duration] << bbrc_duration
@@ -323,9 +199,9 @@ begin
     metadata << info
     puts
     finished_rounds += 1
-    del_ds.each do |del_ds_uri| 
-      ds = OpenTox::Dataset.find(del_ds_uri, subjectid)
-    end
+    
+    # Delete all created datasets except result datasets
+    delete_ds_uri_list(del_ds, subjectid)
     $stdout.flush
   end
 
@@ -343,6 +219,14 @@ begin
       writer << [result1[i], result2[i]]
     end
   end
+  
+  kept_ds_file_name = "kept_result_ds.csv"
+  File.open(kept_ds_file_name, 'a+') do |file|
+    file.puts "Start of #{csv_file_name}"
+    keep_ds.each do |uri| 
+      file.puts uri
+    end
+  end 
 
   min_sampling_support = (statistics[:min_sampling_support].inject{|sum,x| sum + x })/(statistics[:min_sampling_support].size) unless statistics[:min_sampling_support].compact.empty?
   min_frequency_per_sample = (statistics[:min_frequency_per_sample].inject{|sum,x| sum + x })/(statistics[:min_frequency_per_sample].size) unless statistics[:min_frequency_per_sample].compact.empty?
@@ -391,6 +275,13 @@ rescue Exception => e
     writer << ['E1', 'E2']
     for i in 0..result1.size
       writer << [result1[i], result2[i]]
+    end
+  end
+
+  kept_ds_file_name = "kept_result_ds.csv"
+  File.open(kept_ds_file_name, 'a+') do |file|
+    keep_ds.each do |uri|
+      file.puts uri
     end
   end
 
