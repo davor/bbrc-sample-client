@@ -2,8 +2,6 @@
 # # Author: David Vorgrimmler
 #
 
-
-
 # Check plausibility of arguments 
 # 
 def check_params(args, dataset_names)
@@ -63,3 +61,77 @@ def check_params(args, dataset_names)
   end
 end
 
+# Find "good" min_frequency
+# @params Hash dataset_uri, backbone, time_per_cmpd, upper_limit, lower_limit , subjectid
+# @return nil or integer (good min_frequency value)
+def detect_min_frequency(detect_params)
+  ds = OpenTox::Dataset.find(detect_params["dataset_uri"], detect_params["subjectid"])
+  ds_nr_com = ds.compounds.size
+
+  durations = []
+  x = ds_nr_com
+  ds_result_nr_f = 0
+  y = x
+  y_old = 0
+  # puts "----- Initialization: -----"
+  while ds_result_nr_f < (ds_nr_com/4).to_i do
+    y_old = y
+    y = x
+    x = (x/2).to_i
+    detect_params["min_frequency"] = x
+    t = Time.now
+    result_uri = OpenTox::RestClientWrapper.post( File.join(CONFIG[:services]["opentox-algorithm"],"fminer/bbrc/"), detect_params )
+    durations << Time.now - t
+    ds_result = OpenTox::Dataset.find(result_uri,detect_params["subjectid"])
+    ds_result_nr_f = ds_result.features.size
+    ds_result.delete(detect_params["subjectid"])
+  end
+  # puts "----- Main phase: -----"
+  max_duration = durations[0] +(ds_nr_com.to_f * detect_params["time_per_cmpd"])
+  detect_params["min_frequency"] = y
+  y = y_old
+  found = false
+  cnt = 0
+  min_f = detect_params["min_frequency"]
+  # Search for min_frequency with following heuristic procedure. If no good min_frequency found the delivered value(from the arguments) is used.
+  while found == false && cnt <= 4 do
+    if min_f == detect_params["min_frequency"]
+      cnt = cnt + 1
+    end
+    min_f = detect_params["min_frequency"]
+    t = Time.now
+    result_uri = OpenTox::RestClientWrapper.post( File.join(CONFIG[:services]["opentox-algorithm"],"fminer/bbrc/"), detect_params )
+    durations << Time.now - t
+    ds_result = OpenTox::Dataset.find(result_uri, detect_params["subjectid"])
+    ds_result_nr_f = ds_result.features.size
+    ds_result.delete(detect_params["subjectid"])
+    # Check if number of features is max half and min one-tenth of the number of compounds and performed in accaptable amount of time
+    if ds_result_nr_f.to_i < (ds_nr_com * detect_params["upper_limit"]).to_i && ds_result_nr_f.to_i > (ds_nr_com * detect_params["lower_limit"]).to_i
+      if durations.last < max_duration
+        found = true
+        return detect_params["min_frequency"]
+      else
+        x = detect_params["min_frequency"]
+        detect_params["min_frequency"] = ((detect_params["min_frequency"]+y)/2).to_i
+      end
+    else
+      y = detect_params["min_frequency"]
+      detect_params["min_frequency"] = ((x+detect_params["min_frequency"])/2).to_i
+    end
+  end
+end
+
+# Find prediction feature
+# @return nil or feature_uri if dataset contains only one feature
+def get_prediction_feature(ds_uri, subjectid)
+  ds = OpenTox::Dataset.find(ds_uri, subjectid)
+  return ds.features.keys[0] if ds.features.keys.size == 1
+end
+
+# Delete list of dataset uris
+def delete_ds_uri_list(ds_uri_list, subjectid)
+  ds_uri_list.each do |del_ds_uri|
+    ds = OpenTox::Dataset.find(del_ds_uri, subjectid)
+    ds.delete(subjectid)
+  end 
+end

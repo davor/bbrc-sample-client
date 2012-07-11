@@ -34,6 +34,10 @@
 
   "KAZ": {
     "dataset": "http://toxcreate3.in-silico.ch:8086/dataset/5"
+  },
+
+  "HAM": {
+    "dataset": "http://toxcreate3.in-silico.ch:8086/dataset/271151"
   }
 
 }
