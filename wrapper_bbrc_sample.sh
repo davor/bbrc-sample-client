@@ -25,7 +25,7 @@ FACTORS="$1"
 PID="will_be_set_to_real_PID_when_bbrc-sample-client_runs"
 
 # Don't start when running
-while ps x | grep $PID | grep -v grep >/dev/null 2>&1; do sleep 30; done
+while ps x | grep $PID | grep $BBRC | grep -v grep >/dev/null 2>&1; do sleep 30; done
 
 LOGFILE="$THIS_DATE""$USER""_bbrc_sample.log"
 #rm "$LOGFILE" >/dev/null 2>&1
