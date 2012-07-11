@@ -27,8 +27,7 @@ ds_names = ds.keys
 
 check_params(ARGV, ds_names)
 
-subjectid = nil
-
+# Setting parameter 
 ds_name = ARGV[1] # e.g. MOU,RAT
 num_boots = ARGV[2] # integer, 100 recommended
 backbone = ARGV[3] # true/false
@@ -40,10 +39,11 @@ end_seed = ARGV[8].to_i #integer (>= start_seed)
 split_ratio = ARGV[9].to_f # float, default 0.5 (>=0.1 and <=0.9)
 time_per_cmpd = ARGV[10].to_f  # float, 0.003 (secounds) recommended but this is only an experience value.
 hits = false
-
+stratified = true
+subjectid = nil
 ds_uri = ds[ds_name]["dataset"]
-
 finished_rounds = 0
+
 result1 = []
 result2 = []
 metadata = []
@@ -75,9 +75,8 @@ begin
     puts "                       ----- split ds -----"
     split_params = {}
     split_params["dataset_uri"] = ds_uri
-    
     split_params["prediction_feature"] = get_prediction_feature(ds_uri, subjectid)
-    split_params["stratified"] = true 
+    split_params["stratified"] = stratified 
     split_params["split_ratio"] = split_ratio
     split_params["random_seed"] = i
     puts "[#{Time.now.iso8601(4).to_s}] Split params: #{split_params.to_yaml}"
@@ -156,36 +155,13 @@ begin
     # COMPARE pValues
     #################################
     puts "                 ----- pValue comparision -----"
-    bbrc_ds = OpenTox::Dataset.find(feature_dataset_uri)
-    bbrc_ds.save(subjectid)
-    keep_ds << bbrc_ds.uri
-    bbrc_smarts_pValues = {}
-    bbrc_ds.features.each do |f, values|
-      if values[RDF::type].include?(OT.Substructure)
-        bbrc_smarts_pValues[values[OT::smarts]] =  values[OT::pValue]
-      end
-    end 
+    keep_ds << "random_seed: #{i}"
+    bbrc_smarts_pValues = get_pValues(feature_dataset_uri, subjectid)
+    keep_ds << feature_dataset_uri
 
-    match_ds = OpenTox::Dataset.find(matched_dataset_uri)
-    keep_ds << match_ds.uri
-    matched_smarts_pValues = {}
-    match_ds.features.each do |f, values|
-      if values[RDF::type].include?(OT.Substructure)
-        matched_smarts_pValues[values[OT::smarts]] =  values[OT::pValue]
-      end
-    end
-
-    sum_E1 = 0.0
-    sum_E2 = 0.0
-    bbrc_smarts_pValues.each do |s, p|
-      if matched_smarts_pValues.include?(s)
-        dif = (p.to_f - matched_smarts_pValues[s].to_f)
-        sum_E1 = sum_E1 + dif 
-        sum_E2 = sum_E2 + dif.abs
-      end
-    end
-    sum_E1 = sum_E1/bbrc_smarts_pValues.size
-    sum_E2 = sum_E2/bbrc_smarts_pValues.size 
+    matched_smarts_pValues = get_pValues(matched_dataset_uri, subjectid)
+    keep_ds << matched_dataset_uri 
+    sum_E1, sum_E2 = calc_E1_E2(bbrc_smarts_pValues, matched_smarts_pValues)
     puts "[#{Time.now.iso8601(4).to_s}] Sum pValue difference (E1): #{sum_E1}"
     puts "[#{Time.now.iso8601(4).to_s}] Squared sum pValue difference (E2): #{sum_E2}"
     $stdout.flush
@@ -200,6 +176,7 @@ begin
     t_ds = OpenTox::Dataset.find(datasets[:training_ds])
     statistics[:t_ds_nr_com] << t_ds.compounds.size.to_f
   
+    bbrc_ds = OpenTox::Dataset.find(feature_dataset_uri, subjectid)
     statistics[:bbrc_ds_nr_com] << bbrc_ds.compounds.size.to_f
     statistics[:bbrc_ds_nr_f] << bbrc_ds.features.size.to_f
     statistics[:duration] << bbrc_duration
@@ -245,6 +222,7 @@ begin
   
   kept_ds_file_name = "kept_result_ds.csv"
   File.open(kept_ds_file_name, 'a+') do |file|
+    file.puts "Start of #{csv_file_name}"
     keep_ds.each do |uri| 
       file.puts uri
     end

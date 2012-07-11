@@ -135,3 +135,36 @@ def delete_ds_uri_list(ds_uri_list, subjectid)
     ds.delete(subjectid)
   end 
 end
+
+# Get pValues from dataset
+# @return Hash SMARTS and their pValues
+def get_pValues(ds_uri, subjectid)
+  pValues = {}
+  ds = OpenTox::Dataset.find(ds_uri, subjectid)
+  ds.features.each do |f, values|
+    if values[RDF::type].include?(OT.Substructure)
+      pValues[values[OT::smarts]] = values[OT::pValue]
+    end
+  end
+  return pValues
+end
+
+# Calulate E1 and E2 from two hashes ()
+# @params two hashes with SMARTS and their pValues 
+# @return Array with E1 and E2
+def calc_E1_E2(first_smarts_pValues, second_smarts_pValues)
+  sum_E1 = 0.0
+  sum_E2 = 0.0
+  cnt = 0
+  first_smarts_pValues.each do |s, p|
+    if second_smarts_pValues.include?(s)
+      dif = (p.to_f - second_smarts_pValues[s].to_f)
+      sum_E1 = sum_E1 + dif
+      sum_E2 = sum_E2 + dif.abs
+      cnt += 1
+    end
+  end
+  e1 = sum_E1/cnt
+  e2 = sum_E2/cnt
+  return e1, e2
+end
