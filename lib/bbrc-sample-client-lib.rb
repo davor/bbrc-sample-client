@@ -1,3 +1,11 @@
+# Lib for bbrc-sample-client
+# # Author: David Vorgrimmler
+#
+
+
+
+# Check plausibility of arguments 
+# 
 def check_params(args, dataset_names)
   if ! (dataset_names.include? args[1])
     puts "dataset name has to exist in dataset.yaml"

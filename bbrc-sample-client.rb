@@ -1,10 +1,12 @@
-# # Author: Andreas Maunz, David Vorgrimmler
+# bbrc-sample-client
+# Author: Andreas Maunz, David Vorgrimmler
+# 
 
 require 'rubygems'
 require 'opentox-ruby'
 require 'yaml'
 require 'csv'
-require 'lib/bbrc_sample_lib.rb'
+require 'lib/bbrc-sample-client-lib.rb'
 
 if ARGV.size != 11 
   puts "Args: path/to/dataset.yaml ds_name num_boots backbone min_frequency method find_min_frequency start_seed end_seed split_ratio time_per_cmpd"
@@ -213,6 +215,7 @@ begin
     end 
 
     match_ds = OpenTox::Dataset.find(matched_dataset_uri)
+    del_ds << match_ds.uri
     matched_smarts_pValues = {}
     match_ds.features.each do |f, values|
       if values[RDF::type].include?(OT.Substructure)
