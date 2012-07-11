@@ -20,11 +20,12 @@ fi
 source $HOME/.bash_aliases
 otconfig
 THIS_DATE=`date +%Y%m%d_%H_`
-BBRC="bbrc_sample.rb"
+BBRC="bbrc-sample-client.rb"
 FACTORS="$1"
+PID="will_be_set_to_real_PID_when_bbrc-sample-client_runs"
 
 # Don't start when running
-while ps x | grep $BBRC | grep -v grep >/dev/null 2>&1; do sleep 30; done
+while ps x | grep $PID | grep -v grep >/dev/null 2>&1; do sleep 30; done
 
 LOGFILE="$THIS_DATE""$USER""_bbrc_sample.log"
 #rm "$LOGFILE" >/dev/null 2>&1
@@ -39,7 +40,7 @@ cat $FACTORS | while read factor; do
     echo "${THIS_DATE}: $factor" >> $LOGFILE>&1
     echo "ruby $BBRC $2 $factor" >> $LOGFILE 2>&1
     ruby $BBRC $2 $factor >> $LOGFILE 2>&1
+    PID=$! 
     echo >> $LOGFILE 2>&1
   fi
 done
-
