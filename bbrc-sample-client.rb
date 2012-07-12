@@ -173,25 +173,11 @@ begin
     result2 << sum_E2
     
     # save statistics
-    t_ds = OpenTox::Dataset.find(datasets[:training_ds])
-    statistics[:t_ds_nr_com] << t_ds.compounds.size.to_f
-  
-    bbrc_ds = OpenTox::Dataset.find(feature_dataset_uri, subjectid)
-    statistics[:bbrc_ds_nr_com] << bbrc_ds.compounds.size.to_f
-    statistics[:bbrc_ds_nr_f] << bbrc_ds.features.size.to_f
-    statistics[:duration] << bbrc_duration
-   
-    if !method.to_s.include?("bbrc")
-      statistics[:min_sampling_support] << bbrc_ds.metadata[OT::parameters][2][OT::paramValue].to_f #ToDo get values by params name
-      statistics[:min_frequency_per_sample] << bbrc_ds.metadata[OT::parameters][4][OT::paramValue].to_f
-      statistics[:merge_time] << bbrc_ds.metadata[OT::parameters][6][OT::paramValue].to_f
-      statistics[:n_stripped_mss] << bbrc_ds.metadata[OT::parameters][7][OT::paramValue].to_f
-      statistics[:n_stripped_cst] << bbrc_ds.metadata[OT::parameters][8][OT::paramValue].to_f
-    end
+    statistics = add_statistics(datasets[:training_ds], feature_dataset_uri, bbrc_duration, method, statistics, subjectid)
 
     # save params
     info = []
-    info << { :ds_name => ds_name, :nr_features => bbrc_ds.features.size} 
+    info << { :ds_name => ds_name, :nr_features => statistics[:bbrc_ds_nr_f].last} 
     info << split_params
     info << algo_params
     info << match_params

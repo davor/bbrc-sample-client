@@ -151,7 +151,7 @@ end
 
 # Calulate E1 and E2 from two hashes ()
 # @params two hashes with SMARTS and their pValues 
-# @return Array with E1 and E2
+# @return two Floats with E1 and E2
 def calc_E1_E2(first_smarts_pValues, second_smarts_pValues)
   sum_E1 = 0.0
   sum_E2 = 0.0
@@ -168,3 +168,48 @@ def calc_E1_E2(first_smarts_pValues, second_smarts_pValues)
   e2 = sum_E2/cnt
   return e1, e2
 end
+
+# Add statistics of current run
+# @params String training_dataset_uris, String feature_dataset_uri, Float bbrc_duration String method, Hash statistics 
+# @return Hash with statistics
+def add_statistics(training_ds_uri, feature_ds_uri, bbrc_duration, method, statistics, subjectid)
+  t_ds = OpenTox::Dataset.find(training_ds_uri, subjectid)
+  statistics[:t_ds_nr_com] << t_ds.compounds.size.to_f
+
+  bbrc_ds = OpenTox::Dataset.find(feature_ds_uri, subjectid)
+  statistics[:bbrc_ds_nr_com] << bbrc_ds.compounds.size.to_f
+  statistics[:bbrc_ds_nr_f] << bbrc_ds.features.size.to_f
+  statistics[:duration] << bbrc_duration
+  bbrc_ds_params = get_metadata_params(bbrc_ds.metadata[OT::parameters])
+
+  if !method.to_s.include?("bbrc")
+    ["min_sampling_support", "min_frequency_per_sample", "merge_time", "n_stripped_mss", "n_stripped_cst"].each do |param|
+      statistics[param] << bbrc_ds_params[param].to_f 
+    end
+  end
+  puts statistics.to_yaml
+  return statistics
+end
+
+# Get OT::parameters from dataset metadata
+# @params Array of feature_dataset.metadata[OT::parameters]
+# @return Hash with params(title and value)
+def get_metadata_params(params_arr)
+  params = {}
+  if params_arr.nil?
+    params = nil
+  else
+    params_arr.each do |param|
+      params[param[DC::title]] = param[OT::paramValue] unless param[DC::title].nil? || param[OT::paramValue].nil?
+    end
+  end
+  puts params.to_yaml
+  return params
+end
+
+# Create final metadata for log output
+#
+# @return Array with metadata
+#def create_final_matadata
+#
+#end
