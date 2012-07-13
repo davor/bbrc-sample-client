@@ -1,4 +1,4 @@
-# Lib for bbrc-sample-client
+# Library for bbrc-sample-client
 # # Author: David Vorgrimmler
 #
 
@@ -62,49 +62,69 @@ def check_params(args, dataset_names)
 end
 
 # Find "good" min_frequency
-# @params Hash dataset_uri, backbone, time_per_cmpd, upper_limit, lower_limit , subjectid
+# More information: http://opentox.github.com/opentox-algorithm/2012/05/02/bbrc-and-last-pm-usage/
+# @params Hash dataset_uri, backbone, time_per_cmpd, upper_limit, lower_limit , subjectid, fminer_algo(optional, default: bbrc), nr_com_ratio(optional, default: 0.25), verbose(optional, default: false)
 # @return nil or integer (good min_frequency value)
 def detect_min_frequency(detect_params)
+  detect_params["verbose"] = detect_params["verbose"] == "true" ? true : false
+  puts if detect_params["verbose"]
+  puts "[#{Time.now.iso8601(4).to_s}] ----- Start detect_min_frequency" if detect_params["verbose"]
+  detect_params["fminer_algo"] = detect_params["fminer_algo"] == "last" ? "last" : "bbrc"
+  detect_params["nr_com_ratio"] = detect_params["nr_com_ratio"].nil? ? 0.25 : detect_params["nr_com_ratio"] 
+  puts "Params: #{detect_params.to_yaml}" if detect_params["verbose"]
+
   ds = OpenTox::Dataset.find(detect_params["dataset_uri"], detect_params["subjectid"])
   ds_nr_com = ds.compounds.size
+  puts "Number of compound in training dataset: #{ds_nr_com}" if detect_params["verbose"]
 
   durations = []
   x = ds_nr_com
   ds_result_nr_f = 0
   y = x
   y_old = 0
-  # puts "----- Initialization: -----"
-  while ds_result_nr_f < (ds_nr_com/4).to_i do
+  puts if detect_params["verbose"]
+  puts "[#{Time.now.iso8601(4).to_s}] ----- Initialization: -----" if detect_params["verbose"]
+  while ds_result_nr_f < (ds_nr_com * detect_params["nr_com_ratio"]).to_i do
     y_old = y
     y = x
     x = (x/2).to_i
     detect_params["min_frequency"] = x
+    puts "Min_freq: '#{x}'" if detect_params["verbose"]
     t = Time.now
-    result_uri = OpenTox::RestClientWrapper.post( File.join(CONFIG[:services]["opentox-algorithm"],"fminer/bbrc/"), detect_params )
+    result_uri = OpenTox::RestClientWrapper.post( File.join(CONFIG[:services]["opentox-algorithm"],"fminer/#{detect_params["fminer_algo"]}/"), detect_params )
     durations << Time.now - t
     ds_result = OpenTox::Dataset.find(result_uri,detect_params["subjectid"])
     ds_result_nr_f = ds_result.features.size
     ds_result.delete(detect_params["subjectid"])
+    puts "Number of features #{ds_result_nr_f}" if detect_params["verbose"]
+    puts "Duration of feature calculation: #{durations.last}" if detect_params["verbose"]
+    puts "----------" if detect_params["verbose"]
   end
-  # puts "----- Main phase: -----"
+  puts if detect_params["verbose"]
+  puts "[#{Time.now.iso8601(4).to_s}] ----- Main phase: -----" if detect_params["verbose"]
   max_duration = durations[0] +(ds_nr_com.to_f * detect_params["time_per_cmpd"])
+  puts "Max duration: '#{max_duration}'sec" if detect_params["verbose"]
   detect_params["min_frequency"] = y
   y = y_old
   found = false
   cnt = 0
   min_f = detect_params["min_frequency"]
   # Search for min_frequency with following heuristic procedure. If no good min_frequency found the delivered value(from the arguments) is used.
-  while found == false && cnt <= 4 do
+  while found == false && cnt <= 2 do
     if min_f == detect_params["min_frequency"]
       cnt = cnt + 1
     end
     min_f = detect_params["min_frequency"]
+    puts "Min_freq: '#{min_f}'" if detect_params["verbose"]
     t = Time.now
-    result_uri = OpenTox::RestClientWrapper.post( File.join(CONFIG[:services]["opentox-algorithm"],"fminer/bbrc/"), detect_params )
+    result_uri = OpenTox::RestClientWrapper.post( File.join(CONFIG[:services]["opentox-algorithm"],"fminer/#{detect_params["fminer_algo"]}/"), detect_params )
     durations << Time.now - t
     ds_result = OpenTox::Dataset.find(result_uri, detect_params["subjectid"])
     ds_result_nr_f = ds_result.features.size
     ds_result.delete(detect_params["subjectid"])
+    puts "Number of features #{ds_result_nr_f}" if detect_params["verbose"]
+    puts "Duration of feature calculation: #{durations.last}" if detect_params["verbose"]
+    puts "----------" if detect_params["verbose"]
     # Check if number of features is max half and min one-tenth of the number of compounds and performed in accaptable amount of time
     if ds_result_nr_f.to_i < (ds_nr_com * detect_params["upper_limit"]).to_i && ds_result_nr_f.to_i > (ds_nr_com * detect_params["lower_limit"]).to_i
       if durations.last < max_duration
@@ -181,13 +201,11 @@ def add_statistics(training_ds_uri, feature_ds_uri, bbrc_duration, method, stati
   statistics[:bbrc_ds_nr_f] << bbrc_ds.features.size.to_f
   statistics[:duration] << bbrc_duration
   bbrc_ds_params = get_metadata_params(bbrc_ds.metadata[OT::parameters])
-
   if !method.to_s.include?("bbrc")
     ["min_sampling_support", "min_frequency_per_sample", "merge_time", "n_stripped_mss", "n_stripped_cst"].each do |param|
-      statistics[param] << bbrc_ds_params[param].to_f 
+      statistics[:"#{param}"] << bbrc_ds_params[param].to_f 
     end
   end
-  puts statistics.to_yaml
   return statistics
 end
 
@@ -203,13 +221,5 @@ def get_metadata_params(params_arr)
       params[param[DC::title]] = param[OT::paramValue] unless param[DC::title].nil? || param[OT::paramValue].nil?
     end
   end
-  puts params.to_yaml
   return params
 end
-
-# Create final metadata for log output
-#
-# @return Array with metadata
-#def create_final_matadata
-#
-#end

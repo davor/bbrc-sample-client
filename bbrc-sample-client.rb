@@ -224,6 +224,7 @@ begin
   n_stripped_mss = (statistics[:n_stripped_mss].inject{|sum,x| sum + x })/(statistics[:n_stripped_mss].size) unless statistics[:n_stripped_mss].compact.empty?
   n_stripped_cst = (statistics[:n_stripped_cst].inject{|sum,x| sum + x })/(statistics[:n_stripped_cst].size) unless statistics[:n_stripped_cst].compact.empty?
 
+
   if method.to_s.include?("bbrc")
     metadata << "Dataset,num_boot,nr_hits,bbrc_ds_nr_com,ds_nr_com,bbrc_ds_nr_f,duration"
     gdoc_input = "=hyperlink(\"#{ds_uri}\";\"#{ds_name}\"),#{num_boots},#{hits},#{bbrc_ds_nr_com},#{ds_nr_com},#{bbrc_ds_nr_f},#{duration}"
