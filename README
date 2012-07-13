@@ -1,0 +1,22 @@
+
+FIND MIN FREQUENCY
+
+Usage information for find_min_frequency.rb
+Args: path/to/dataset.yaml ds_name backbone time_per_cmpd upper_limit lower_limit nr_com_ratio fminer_algo verbose
+
+Required arguments:
+  path/to/dataset.yaml: string e.g. "data/dataset_bbrc.yaml" which stores ds_names and their dataset_uris
+  ds_name: string e.g. "MOU", needed to find correct dataset_uri
+  backbone: true or false 
+  time_per_cmpd: float, used to set max_duration of a feature calulation
+  upper_limit: float, has to be larger than lower_limit. 
+  lower_limit: float, has to be smaller than upper_limit. 
+    - Number of features has to be between this limits. In this implementation the limits are 'number of compounds in training data' multiplied with upper-/lower_limit.  See link below "Practical Aspects" -> Main
+phase 2.)
+  nr_com_ratio: float between 0.1 and 0.75. Regulates how much features has to be calculated in initialization step. See link below "Practical Aspects" -> Initialization 4.)
+  fminer_algo: bbrc or last 
+  verbose: true or false, explain what is being done
+
+General information about min_frequency found at "BBRC and LAST PM Usage" http://opentox.github.com/opentox-algorithm/2012/05/02/bbrc-and-last-pm-usage/
+
+
