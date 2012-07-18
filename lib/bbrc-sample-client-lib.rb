@@ -192,20 +192,32 @@ end
 # Add statistics of current run
 # @params String training_dataset_uris, String feature_dataset_uri, Float bbrc_duration String method, Hash statistics 
 # @return Hash with statistics
-def add_statistics(training_ds_uri, feature_ds_uri, bbrc_duration, method, statistics, subjectid)
-  t_ds = OpenTox::Dataset.find(training_ds_uri, subjectid)
-  statistics[:t_ds_nr_com] << t_ds.compounds.size.to_f
-
-  bbrc_ds = OpenTox::Dataset.find(feature_ds_uri, subjectid)
-  statistics[:bbrc_ds_nr_com] << bbrc_ds.compounds.size.to_f
-  statistics[:bbrc_ds_nr_f] << bbrc_ds.features.size.to_f
-  statistics[:duration] << bbrc_duration
-  bbrc_ds_params = get_metadata_params(bbrc_ds.metadata[OT::parameters])
-  if !method.to_s.include?("bbrc")
-    ["min_sampling_support", "min_frequency_per_sample", "merge_time", "n_stripped_mss", "n_stripped_cst"].each do |param|
-      statistics[:"#{param}"] << bbrc_ds_params[param].to_f 
+def add_statistics(feature_ds_uri, bbrc_duration, method, random_seed, min_frequency, statistics, subjectid)
+  if feature_ds_uri.nil?
+    statistics[:min_frequency] << min_frequency
+    statistics[:random_seed] << random_seed
+    ["bbrc_ds_nr_com","bbrc_ds_nr_f","duration","min_sampling_support", "min_frequency_per_sample", "merge_time", "n_stripped_mss", "n_stripped_cst"].each do |param|
+      statistics[:"#{param}"] << "NA"
+    end
+  else
+    bbrc_ds = OpenTox::Dataset.find(feature_ds_uri, subjectid)
+    statistics[:bbrc_ds_nr_com] << bbrc_ds.compounds.size.to_f
+    statistics[:bbrc_ds_nr_f] << bbrc_ds.features.size.to_f
+    statistics[:duration] << bbrc_duration
+    statistics[:random_seed] << random_seed
+    statistics[:min_frequency] << min_frequency
+    bbrc_ds_params = get_metadata_params(bbrc_ds.metadata[OT::parameters])
+    if !method.to_s.include?("bbrc")
+      ["min_sampling_support", "min_frequency_per_sample", "merge_time", "n_stripped_mss", "n_stripped_cst"].each do |param|
+        statistics[:"#{param}"] << bbrc_ds_params[param].to_f 
+      end
+    else
+      ["min_sampling_support", "min_frequency_per_sample", "merge_time", "n_stripped_mss", "n_stripped_cst"].each do |param|
+        statistics[:"#{param}"] << "NA"
+      end
     end
   end
+
   return statistics
 end
 
@@ -223,3 +235,28 @@ def get_metadata_params(params_arr)
   end
   return params
 end
+
+# Split dataset and return two uris
+# @params
+# @result
+# @example
+def split_dataset(params)
+  split_result = OpenTox::RestClientWrapper.post(File.join(CONFIG[:services]["opentox-validation"],"plain_training_test_split"), params)
+  datasets = {}
+  datasets[:training_ds] = split_result.inspect.gsub(/"/,'').split("\\n")[0]
+  datasets[:test_ds] = split_result.inspect.gsub(/"/,'').split("\\n")[1]
+  return datasets
+end
+
+# Add string array to file
+# @params
+# @result
+# @example
+def add_string_arr_to_file(filename, string_array)
+  File.open(filename, 'a+') do |file|
+    string_array.each do |string|
+      file.puts string
+    end
+  end
+end
+
