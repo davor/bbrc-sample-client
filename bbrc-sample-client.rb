@@ -66,7 +66,6 @@ end
 add_string_arr_to_file( csv_file_name, ["E1,E2,min_frequency,min_frequency_per_sample,bbrc_ds_nr_com,bbrc_ds_nr_f,bbrc_duration,merge_time,n_stripped_mss,n_stripped_cst,min_sampling_support,random_seed"]) 
 
 kept_ds_file_name = "kept_result_ds.csv"
-keep_ds = ["Start of #{csv_file_name}"]
  
 $stdout.flush
 
@@ -168,7 +167,6 @@ begin
       # COMPARE pValues
       #################################
       puts "                 ----- pValue comparision -----"
-      keep_ds << "random_seed: #{i}"
       bbrc_smarts_pValues = get_pValues(feature_dataset_uri, subjectid)
       keep_ds << feature_dataset_uri
 
