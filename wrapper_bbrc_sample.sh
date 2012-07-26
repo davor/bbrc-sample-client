@@ -7,40 +7,37 @@ if [ $# -lt 2 ]; then
   exit
 fi
 
-#PWD=`pwd`
-#echo $PWD
-#if [ ! -f $PWD/../data/datasets.yaml ] 
-if [ ! -f $2 ] 
-then
-  echo "datasets.yaml does not exist."
-  exit
-fi
 
 # Configure basics
-source $HOME/.bash_aliases
-otconfig
 THIS_DATE=`date +%Y%m%d_%H_`
 BBRC="bbrc-sample-client.rb"
 FACTORS="$1"
-PID="will_be_set_to_real_PID_when_bbrc-sample-client_runs"
+DSYAML="$2"
 
-# Don't start when running
-while ps x | grep $PID | grep $BBRC | grep -v grep >/dev/null 2>&1; do sleep 30; done
+source "$HOME/.bash_aliases"
+if ! declare -F otconfig > /dev/null 2>&1; then
+  echo "No OT environment"
+  exit 1
+else
+  otconfig
+fi
 
-LOGFILE="$THIS_DATE""$USER""_bbrc_sample.log"
-#rm "$LOGFILE" >/dev/null 2>&1
-if [ -f $LOGFILE ]
-then
-  LOGFILE="$LOGFILE`date +%M%S`"
+if [ ! -f $FACTORS ]; then
+  echo "Factors not found"
+  exit 1
+fi
+
+if [ ! -f $DSYAML ]; then 
+  echo "datasets.yaml does not exist."
+  exit
 fi
 
 
 cat $FACTORS | while read factor; do
   if ! [[ "$factor" =~ "#" ]]; then # allow comments
-    echo "${THIS_DATE}: $factor" >> $LOGFILE>&1
-    echo "ruby $BBRC $2 $factor" >> $LOGFILE 2>&1
-    ruby $BBRC $2 $factor >> $LOGFILE 2>&1
-    PID=$! 
+    LOGFILE="`echo $factor | sed 's/\s/_/g'`_`date +%H%M%S`.log"
+    echo "${THIS_DATE}: ruby $BBRC $2 $factor" >> $LOGFILE 2>&1
+    ruby $BBRC $DSYAML $factor >> $LOGFILE 2>&1
     echo >> $LOGFILE 2>&1
   fi
 done
