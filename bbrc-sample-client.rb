@@ -62,7 +62,8 @@ statistics[:random_seed] = []
 csv_file_name = "bbrc_sample_#{ds_name}_#{method}_results_#{Time.now.usec.to_s}.csv"
 add_string_arr_to_file( csv_file_name, ["E1,E2,min_frequency,min_frequency_per_sample,bbrc_ds_nr_com,bbrc_ds_nr_f,bbrc_duration,merge_time,n_stripped_mss,n_stripped_cst,min_sampling_support,random_seed"]) 
 
-kept_ds_file_name = "kept_result_ds.csv"
+kept_ds_file_name = "bbrc_sample_#{ds_name}_#{method}_keptds_#{Time.now.usec.to_s}.csv"
+keep_ds = []
  
 $stdout.flush
 
