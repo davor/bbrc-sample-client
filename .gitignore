@@ -1,0 +1,9 @@
+kept_result_*
+data/datasets_bbrc.yaml
+factors_config
+exp*
+factors_config_*
+create_ds.rb
+bbrc-sample-client_dv.rb
+data/datasets_bbrc_knecht5.yaml
+old*
