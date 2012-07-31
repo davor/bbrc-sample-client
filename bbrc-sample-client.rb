@@ -8,26 +8,16 @@ require 'yaml'
 require 'csv'
 require 'lib/bbrc-sample-client-lib.rb'
 
-if ARGV.size != 11 
-  puts "Args: path/to/dataset.yaml ds_name num_boots backbone min_frequency method find_min_frequency start_seed end_seed split_ratio time_per_cmpd"
-  puts ARGV.size
-  exit
+wrong_arg = false
+if ARGV.size != 11
+  puts "Wrong number of arguments: '#{ARGV.size}'"
+  wrong_arg = true
 end
 
-path = ARGV[0]
-ds_file = path.split("/").last
-if File.exists?(path)
-  puts "[#{Time.now.iso8601(4).to_s}] #{ds_file} exists."
-else
-  puts "#{ds_file} does not exist."
-  exit
-end
-ds = YAML::load_file("#{path}")
-ds_names = ds.keys
-
-check_params(ARGV, ds_names)
+check_params(ARGV) unless  wrong_arg == true
 
 # Setting parameter 
+path = ARGV[0]
 ds_name = ARGV[1] # e.g. MOU,RAT
 num_boots = ARGV[2] # integer, 100 recommended
 backbone = ARGV[3] # true/false
@@ -41,8 +31,16 @@ time_per_cmpd = ARGV[10].to_f  # float, 0.003 (secounds) recommended but this is
 hits = false
 stratified = true
 subjectid = nil
-ds_uri = ds[ds_name]["dataset"]
+ds_uri = get_ds_uri_from_yaml(path, ds_name)
+if ds_uri.nil?
+    wrong_arg = true
+end
 finished_rounds = 0
+
+if wrong_arg == true
+  puts "Args: path/to/dataset.yaml ds_name num_boots backbone min_frequency method find_min_frequency start_seed end_seed split_ratio time_per_cmpd"
+  exit 1
+end
 
 result1 = []
 result2 = []
