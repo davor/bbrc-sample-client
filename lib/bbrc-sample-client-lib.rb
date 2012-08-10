@@ -104,16 +104,21 @@ def check_params(args)
     wrong_arg = true
   end
 
-  if ! (args[9].to_f <= 0.9 && args[9].to_f >= 0.1)
-    puts "split_ratio must be between 0.1 and 0.9"
+  if ! (args[9].to_f >= 0.0)
+    puts "split_ratio must be >0"
     wrong_arg = true
   end
 
-  if ! (args[10].to_f <= 0.1 && args[10].to_f >= 0.0005)
-    puts "time_per_cmpd must be between 0.0005 and 0.1"
+  if ! (args[10].to_f >= 0.0)
+    puts "time_per_cmpd must be >0"
     wrong_arg = true
   end
-  
+
+  if ! (args[11].to_i > 0)
+    puts "min_sampling_support must be >0"
+    wrong_arg = true
+  end
+
   if wrong_arg == true
     return false
   else
@@ -140,18 +145,18 @@ def check_dmf_params(detect_params)
     wrong_arg = true
   end
 
-  if !((detect_params["time_per_cmpd"].to_f.class == Float) && (detect_params["time_per_cmpd"].to_f >= 0.0005) && (detect_params["time_per_cmpd"].to_f <= 0.1))
+  if !((detect_params["time_per_cmpd"].to_f.class == Float) && (detect_params["time_per_cmpd"].to_f >0))
     puts "time_per_cmpd must be numeric and between 0.0005 and 0.1 (default 0.003), not '#{detect_params["time_per_cmpd"]}'"
     wrong_arg = true
   end
 
-  if !((detect_params["upper_limit"].to_f.class == Float) && (detect_params["upper_limit"].to_f >= 0.11) && (detect_params["upper_limit"].to_f <= 0.99))
-    puts "upper_limit must be numeric and between 0.11 and 0.99 (default 0.5), not '#{detect_params["upper_limit"]}'"
+  if !((detect_params["upper_limit"].to_f.class == Float) && (detect_params["upper_limit"].to_f >0))
+    puts "upper_limit must be numeric and >0 (default 0.5), not '#{detect_params["upper_limit"]}'"
     wrong_arg = true
   end
 
-  if !((detect_params["lower_limit"].to_f.class == Float) && (detect_params["lower_limit"].to_f >= 0.01) && (detect_params["lower_limit"].to_f <= 0.9))
-    puts "lower_limit must be numeric and between 0.01 and 0.9 (default 0.1), not '#{detect_params["lower_limit"]}'"
+  if !((detect_params["lower_limit"].to_f.class == Float) && (detect_params["lower_limit"].to_f > 0))
+    puts "lower_limit must be numeric and >0 (default 0.1), not '#{detect_params["lower_limit"]}'"
     wrong_arg = true
   end  
 
@@ -161,8 +166,8 @@ def check_dmf_params(detect_params)
   end
 
   if !(detect_params["nr_com_ratio"].nil?)
-    if !((detect_params["nr_com_ratio"].to_f <= 0.75) && (detect_params["nr_com_ratio"].to_f >= 0.1))
-      puts "nr_com_ratio must be between 0.1 and 0.75 (default 0.25), not '#{detect_params["nr_com_ratio"]}'"
+    if !((detect_params["nr_com_ratio"].to_f >0))
+      puts "nr_com_ratio must be >0, not '#{detect_params["nr_com_ratio"]}'"
       wrong_arg = true
     end
   end
