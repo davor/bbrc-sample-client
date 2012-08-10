@@ -9,7 +9,7 @@ require 'csv'
 require 'lib/bbrc-sample-client-lib.rb'
 
 wrong_arg = false
-if ARGV.size != 11
+if ARGV.size != 12
   puts "Wrong number of arguments: '#{ARGV.size}'"
   wrong_arg = true
 end
@@ -28,6 +28,9 @@ end_seed             = ARGV[8].to_i #integer (>= start_seed)
 split_ratio          = ARGV[9].to_f # float, default 0.5 (>=0.1 and <=0.9)
 time_per_cmpd        = ARGV[10].to_f  # float, 0.003 (secounds) recommended but this is only an experience value.
 min_sampling_support = ARGV[11].to_i # integer
+
+# Whether cache files should be used
+cache="true"
 
 hits = false
 stratified = true
@@ -136,6 +139,7 @@ begin
         algo_params["num_boots"] = num_boots
         algo_params["random_seed"] = i
         algo_params["min_sampling_support"] = min_sampling_support
+        algo_params["cache"] = cache
         puts "[#{Time.now.iso8601(4).to_s}] BBRC params: #{algo_params.to_yaml}"
         feature_dataset_uri = OpenTox::RestClientWrapper.post( File.join(CONFIG[:services]["opentox-algorithm"],"fminer/bbrc/sample"), algo_params )
       end
