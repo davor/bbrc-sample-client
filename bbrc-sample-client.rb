@@ -9,25 +9,29 @@ require 'csv'
 require 'lib/bbrc-sample-client-lib.rb'
 
 wrong_arg = false
-if ARGV.size != 11
+if ARGV.size != 12
   puts "Wrong number of arguments: '#{ARGV.size}'"
   wrong_arg = true
 end
-
-check_params(ARGV) unless  wrong_arg == true
+wrong_arg = !check_params(ARGV) unless  wrong_arg == true
 
 # Setting parameter 
-path = ARGV[0]
-ds_name = ARGV[1] # e.g. MOU,RAT
-num_boots = ARGV[2] # integer, 100 recommended
-backbone = ARGV[3] # true/false
-min_freq = ARGV[4] # integer
-method = ARGV[5] # mle, mean or bbrc
-find_min_frequency = ARGV[6] # true/false
-start_seed = ARGV[7].to_i # integer (<= end_seed)
-end_seed = ARGV[8].to_i #integer (>= start_seed)
-split_ratio = ARGV[9].to_f # float, default 0.5 (>=0.1 and <=0.9)
-time_per_cmpd = ARGV[10].to_f  # float, 0.003 (secounds) recommended but this is only an experience value.
+path                 = ARGV[0]
+ds_name              = ARGV[1] # e.g. MOU,RAT
+num_boots            = ARGV[2] # integer, 100 recommended
+backbone             = ARGV[3] # true/false
+min_freq             = ARGV[4] # integer
+method               = ARGV[5] # mle, mean or bbrc
+find_min_frequency   = ARGV[6] # true/false
+start_seed           = ARGV[7].to_i # integer (<= end_seed)
+end_seed             = ARGV[8].to_i #integer (>= start_seed)
+split_ratio          = ARGV[9].to_f # float, default 0.5 (>=0.1 and <=0.9)
+time_per_cmpd        = ARGV[10].to_f  # float, 0.003 (secounds) recommended but this is only an experience value.
+min_sampling_support = ARGV[11].to_i # integer
+
+# Whether cache files should be used
+cache="true"
+
 hits = false
 stratified = true
 subjectid = nil
@@ -38,7 +42,7 @@ end
 finished_rounds = 0
 
 if wrong_arg == true
-  puts "Args: path/to/dataset.yaml ds_name num_boots backbone min_frequency method find_min_frequency start_seed end_seed split_ratio time_per_cmpd"
+  puts "Args: path/to/dataset.yaml ds_name num_boots backbone min_frequency method find_min_frequency start_seed end_seed split_ratio time_per_cmpd min_sampling_support"
   exit 1
 end
 
@@ -134,6 +138,8 @@ begin
       else
         algo_params["num_boots"] = num_boots
         algo_params["random_seed"] = i
+        algo_params["min_sampling_support"] = min_sampling_support
+        algo_params["cache"] = cache
         puts "[#{Time.now.iso8601(4).to_s}] BBRC params: #{algo_params.to_yaml}"
         feature_dataset_uri = OpenTox::RestClientWrapper.post( File.join(CONFIG[:services]["opentox-algorithm"],"fminer/bbrc/sample"), algo_params )
       end
