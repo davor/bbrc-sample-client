@@ -1,3 +1,4 @@
+SMILES,rat_carcinogenicity
 CC=O, 1
 CC=NO, 0
 CC(=O)N, 1
