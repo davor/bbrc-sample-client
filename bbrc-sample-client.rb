@@ -7,6 +7,7 @@ require 'opentox-ruby'
 require 'yaml'
 require 'csv'
 require 'lib/bbrc-sample-client-lib.rb'
+require 'lib/bbrc-sample-client-lib2.rb'
 
 wrong_arg = false
 if ARGV.size != 12
@@ -148,6 +149,7 @@ begin
       puts "[#{Time.now.iso8601(4).to_s}] BBRC result: #{feature_dataset_uri}"
       puts
       $stdout.flush
+      keep_ds << feature_dataset_uri
 
       #################################
       # MATCH
@@ -164,19 +166,35 @@ begin
       puts "[#{Time.now.iso8601(4).to_s}] BBRC match result: #{matched_dataset_uri}"
       puts
       $stdout.flush
-
-      #################################
-      # COMPARE pValues
-      #################################
-      puts "                 ----- pValue comparision -----"
-      bbrc_smarts_pValues = get_pValues(feature_dataset_uri, subjectid)
-      keep_ds << feature_dataset_uri
-
-      matched_smarts_pValues = get_pValues(matched_dataset_uri, subjectid)
       keep_ds << matched_dataset_uri 
-      sum_E1, sum_E2 = calc_E1_E2(bbrc_smarts_pValues, matched_smarts_pValues)
-      puts "[#{Time.now.iso8601(4).to_s}] Sum pValue difference (E1): #{sum_E1}"
-      puts "[#{Time.now.iso8601(4).to_s}] Squared sum pValue difference (E2): #{sum_E2}"
+
+      #################################
+      # Generate Errors
+      #################################
+      puts "                 ----- error comparison -----"
+      fd = readCSV(feature_dataset_uri)
+      md = readCSV(matched_dataset_uri)
+      
+      puts "                 ----- E1: support values ---"
+      fd_features = fd.shift
+      md_features = md.shift
+      fd_features.each_with_index { |fdf, fd_col|
+        if fd_col>0 # omit ID
+          fd_sup = getRelSupVal(classes,y,getCol(fd,fd_col))
+          if md_features.include?(fdf)
+            md_sup = getRelSupVal(classes,y,getCol(md,md_features.index(fdf)))
+          end
+          (Vector.elements(fd_sup) - Vector.elements(md_sup)).to_a
+        end
+      }
+
+      
+
+      bbrc_smarts_pValues = get_pValues(feature_dataset_uri, subjectid)
+      matched_smarts_pValues = get_pValues(matched_dataset_uri, subjectid)
+      #sum_E1, sum_E2 = calc_E1_E2(bbrc_smarts_pValues, matched_smarts_pValues)
+      #puts "[#{Time.now.iso8601(4).to_s}] Sum pValue difference (E1): #{sum_E1}"
+      #puts "[#{Time.now.iso8601(4).to_s}] Squared sum pValue difference (E2): #{sum_E2}"
       $stdout.flush
 
     rescue Exception => e 
