@@ -64,8 +64,8 @@ end
 # @return true or false
 # @example 
 def check_params(args)
-  if args[2].to_i <= 2
-    puts "num_boots must be a natural number higher than 30"
+  if args[2].to_i <= 0
+    puts "num_boots must be a natural number >0"
     wrong_arg = true
   end
 

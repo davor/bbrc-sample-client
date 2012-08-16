@@ -131,6 +131,7 @@ begin
       algo_params["min_frequency"] = min_frequency
       algo_params["nr_hits"] = hits
       algo_params["method"] = method
+      algo_params["complete_entries"] = "true"
       
       t = Time.now
       if method == "bbrc"
@@ -160,6 +161,7 @@ begin
       match_params["dataset_uri"] = datasets[:test_ds]
       match_params["min_frequency"] = min_frequency
       match_params["nr_hits"] = hits
+      match_params["complete_entries"] = "true"
       puts "[#{Time.now.iso8601(4).to_s}] Match params: #{match_params.to_yaml}"
 
       matched_dataset_uri = OpenTox::RestClientWrapper.post(File.join(CONFIG[:services]["opentox-algorithm"],"fminer","bbrc","match"),match_params)
@@ -171,36 +173,55 @@ begin
       #################################
       # Generate Errors
       #################################
-      puts "                 ----- error comparison -----"
-      fd = readCSV(feature_dataset_uri)
-      md = readCSV(matched_dataset_uri)
-      
-      puts "                 ----- E1: support values ---"
-      fd_features = fd.shift
-      md_features = md.shift
-      fd_features.each_with_index { |fdf, fd_col|
-        if fd_col>0 # omit ID
-          fd_sup = getRelSupVal(classes,y,getCol(fd,fd_col))
-          if md_features.include?(fdf)
-            md_sup = getRelSupVal(classes,y,getCol(md,md_features.index(fdf)))
-          end
-          (Vector.elements(fd_sup) - Vector.elements(md_sup)).to_a
-        end
-      }
-
-      
-
+      puts "                 ----- pValue comparison -----"
       bbrc_smarts_pValues = get_pValues(feature_dataset_uri, subjectid)
       matched_smarts_pValues = get_pValues(matched_dataset_uri, subjectid)
-      #sum_E1, sum_E2 = calc_E1_E2(bbrc_smarts_pValues, matched_smarts_pValues)
-      #puts "[#{Time.now.iso8601(4).to_s}] Sum pValue difference (E1): #{sum_E1}"
-      #puts "[#{Time.now.iso8601(4).to_s}] Squared sum pValue difference (E2): #{sum_E2}"
+      sum_E1, sum_E2 = calc_E1_E2(bbrc_smarts_pValues, matched_smarts_pValues)
+      puts "[#{Time.now.iso8601(4).to_s}] Sum pValue difference (E1): #{sum_E1}"
+      puts "[#{Time.now.iso8601(4).to_s}] Squared sum pValue difference (E2): #{sum_E2}"
+
+      puts "                 ----- Proportions comparison -----"
+      classes = OpenTox::Dataset.find(datasets[:training_ds]).features.values[0][OT.acceptValue].collect
+      puts "Found #{classes.size} classes '#{classes.join(', ')}'"
+
+      fd = readCSV(feature_dataset_uri); fd_features = fd.shift
+      fd_y = getCol(readCSV(datasets[:training_ds]), 1); fd_endpoint = fd_y.shift
+      md = readCSV(matched_dataset_uri); md_features = md.shift
+      md_y = getCol(readCSV(datasets[:test_ds]), 1); md_endpoint = md_y.shift
+      puts "Found #{fd_y.length} y entries and #{fd.length} occ entries for feature dataset"
+      puts "Found #{md_y.length} y entries and #{md.length} occ entries for match dataset"
+      puts "Found features '#{fd_features.join(', ')}' in feature dataset"
+      puts "Found features '#{md_features.join(', ')}' in match dataset"
+
+      E3_along_features = []
+      fd_features.each_with_index { |fdf, fd_col|
+        if fd_col>0 # omit ID
+
+          fd_occ = getCol(fd, fd_col).collect {|x| x.to_i}
+          fd_sup = getRelSupVal( classes, fd_y, fd_occ )
+
+          if md_features.include?(fdf)
+            md_occ = getCol(md, md_features.index(fdf)).collect {|x| x.to_i}
+            md_sup = getRelSupVal( classes, md_y, md_occ )
+
+            E3_per_class = (Vector.elements(fd_sup) - Vector.elements(md_sup)).to_a
+            puts "Found '#{E3_per_class}.join(',')' E3 across classes for #{fdf}"
+            E3_along_features << E3_per_class.to_gv.mean
+            puts "  => #{E3_along_features.last} (mean)"
+          else
+            E3_along_features << nil
+          end
+        end
+      }
+      E3_sum = E3_along_features.to_gv.mean
+      puts "Found '#{E3_sum}' mean across features"
       $stdout.flush
 
     rescue Exception => e 
       
       puts "[#{Time.now.iso8601(4).to_s}] Random_seed '#{i}' failed."
       puts "[#{Time.now.iso8601(4).to_s}] #{e.class}: #{e.message}"
+      puts "[#{Time.now.iso8601(4).to_s}] Backtrace:\n\t#{e.backtrace.join("\n\t")}"
       failed = true
       $stdout.flush
     
