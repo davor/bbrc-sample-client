@@ -1,3 +1,62 @@
+# Get fraction of values above threshold from two hashes
+# @param [Hash] h1 the first hash
+# @param [Hash] h2 the second hash, not larger than h1
+# @return [Float] the proportion of common hash keys on which the values are both above threshold
+# @example {
+#   h1 = { "foo" => 0.96, "bar" => 0.94, "baz" => 1 }
+#   h2 = { "bar" => 0.96, "foo" => 0.96 }
+#   commonFraction(h1,h2,0.95) # 0.5
+# }
+
+def correctSignFraction(h1,h2,thr)
+  unless (h2 && h2.length>0) 
+    puts "Error: h2 is empty"
+    return nil
+  end
+  if ((h2.keys - h1.keys).length>0) 
+    puts "Error: h2 is larger"
+    return nil
+  end
+  if ((h1.keys - h2.keys).length > (h1.size-h2.size))
+    puts "Error: h2 has keys unknown to h1"
+    return nil
+  end
+  sum = 0
+  h1.each { |k,v| sum+=1 if (h2[k] && h2[k] >= thr) }
+  sum / h2.length.to_f
+end
+
+
+
+# Get fraction of common values from two hashes
+# @param [Hash] h1 the first hash
+# @param [Hash] h2 the second hash, not larger than h1
+# @return [Float] the proportion of common hash keys on which the values agree
+# @example {
+#   h1 = { "foo" => 1, "bar" => 0, "baz" => 1 }
+#   h2 = { "bar" => 0, "foo" => 0 }
+#   commonFraction(h1,h2) # 0.5
+# }
+
+def commonFractionKV(h1,h2)
+  unless (h2 && h2.length>0) 
+    puts "Error: h2 is empty"
+    return nil
+  end
+  if ((h2.keys - h1.keys).length>0) 
+    puts "Error: h2 is larger"
+    return nil
+  end
+  if ((h1.keys - h2.keys).length > (h1.size-h2.size))
+    puts "Error: h2 has keys unknown to h1"
+    return nil
+  end
+  sum = 0
+  h1.each { |k,v| sum+=1 if (h2[k] && h2[k] == v) }
+  sum / h2.length.to_f
+end
+
+
 # Get relative support values
 # @param classes vector of possible class values (Strings or Numerics)
 # @param y vector of class values (Strings or Numerics)
@@ -31,6 +90,8 @@ def getRelSupVal(classes,y,occ)
     return nil
   end
 
+  # Contingency array for classes
+  # run over y and increase cell
   res = Array.new(classes.size, 0)
   y.each_with_index { |val,idx|
     idx2 = classes.index(val)

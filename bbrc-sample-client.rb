@@ -49,6 +49,9 @@ end
 
 result1 = []
 result2 = []
+result3 = []
+result4 = []
+result5 = []
 metadata = []
 
 statistics = {}
@@ -63,7 +66,7 @@ statistics[:n_stripped_mss] = []
 statistics[:n_stripped_cst] = []
 statistics[:random_seed] = []
 csv_file_name = "bbrc_sample_#{ds_name}_#{method}_results_#{Time.now.usec.to_s}.csv"
-add_string_arr_to_file( csv_file_name, ["E1,E2,min_frequency,min_frequency_per_sample,bbrc_ds_nr_com,bbrc_ds_nr_f,bbrc_duration,merge_time,n_stripped_mss,n_stripped_cst,min_sampling_support,random_seed"]) 
+add_string_arr_to_file( csv_file_name, ["E1,E2,E3,E4,E5,min_frequency,min_frequency_per_sample,bbrc_ds_nr_com,bbrc_ds_nr_f,bbrc_duration,merge_time,n_stripped_mss,n_stripped_cst,min_sampling_support,random_seed"]) 
 
 kept_ds_file_name = "bbrc_sample_#{ds_name}_#{method}_keptds_#{Time.now.usec.to_s}.csv"
 keep_ds = []
@@ -159,7 +162,6 @@ begin
       match_params = {}
       match_params["feature_dataset_uri"] = "#{feature_dataset_uri}"
       match_params["dataset_uri"] = datasets[:test_ds]
-      match_params["min_frequency"] = min_frequency
       match_params["nr_hits"] = hits
       match_params["complete_entries"] = "true"
       puts "[#{Time.now.iso8601(4).to_s}] Match params: #{match_params.to_yaml}"
@@ -174,47 +176,51 @@ begin
       # Generate Errors
       #################################
       puts "                 ----- pValue comparison -----"
-      bbrc_smarts_pValues = get_pValues(feature_dataset_uri, subjectid)
-      matched_smarts_pValues = get_pValues(matched_dataset_uri, subjectid)
-      sum_E1, sum_E2 = calc_E1_E2(bbrc_smarts_pValues, matched_smarts_pValues)
-      puts "[#{Time.now.iso8601(4).to_s}] Sum pValue difference (E1): #{sum_E1}"
-      puts "[#{Time.now.iso8601(4).to_s}] Squared sum pValue difference (E2): #{sum_E2}"
+      fd_pValues, fd_effects = get_pValuesEffects(feature_dataset_uri, subjectid)
+      md_pValues, md_effects = get_pValuesEffects(matched_dataset_uri, subjectid)
+      sum_E1, sum_E2 = calc_E1_E2(fd_pValues, md_pValues)
+      e4Sum = commonFractionKV(fd_effects, md_effects)
+      e5Sum = correctSignFraction(fd_pValues, md_pValues, 0.95)
+
+      puts "[#{Time.now.iso8601(4).to_s}] pValue difference (E1): #{sum_E1}"
+      puts "[#{Time.now.iso8601(4).to_s}] pValue difference (E2): #{sum_E2}"
+      puts "[#{Time.now.iso8601(4).to_s}] common effects (E4): #{e4Sum}"
+      puts "[#{Time.now.iso8601(4).to_s}] correct significance (E5): #{e5Sum}"
+      $stdout.flush
 
       puts "                 ----- Proportions comparison -----"
-      classes = OpenTox::Dataset.find(datasets[:training_ds]).features.values[0][OT.acceptValue].collect
-      puts "Found #{classes.size} classes '#{classes.join(', ')}'"
-
+      # convert class values to strings for comparison to CSV input of y
+      classes = OpenTox::Dataset.find(datasets[:training_ds]).features.values[0][OT.acceptValue].collect {|x| x.to_s}
       fd = readCSV(feature_dataset_uri); fd_features = fd.shift
       fd_y = getCol(readCSV(datasets[:training_ds]), 1); fd_endpoint = fd_y.shift
       md = readCSV(matched_dataset_uri); md_features = md.shift
       md_y = getCol(readCSV(datasets[:test_ds]), 1); md_endpoint = md_y.shift
-      puts "Found #{fd_y.length} y entries and #{fd.length} occ entries for feature dataset"
-      puts "Found #{md_y.length} y entries and #{md.length} occ entries for match dataset"
-      puts "Found features '#{fd_features.join(', ')}' in feature dataset"
-      puts "Found features '#{md_features.join(', ')}' in match dataset"
 
-      E3_along_features = []
+      #puts "Found #{classes.size} classes '#{classes.join(', ')}'"
+      #puts "Found #{fd_y.length} y entries and #{fd.length} occ entries for feature dataset"
+      #puts "Found #{md_y.length} y entries and #{md.length} occ entries for match dataset"
+      #puts "Found features '#{fd_features.join(', ')}' in feature dataset"
+      #puts "Found features '#{md_features.join(', ')}' in match dataset"
+
+      e3AlongFeatures = []
       fd_features.each_with_index { |fdf, fd_col|
         if fd_col>0 # omit ID
-
           fd_occ = getCol(fd, fd_col).collect {|x| x.to_i}
           fd_sup = getRelSupVal( classes, fd_y, fd_occ )
-
           if md_features.include?(fdf)
             md_occ = getCol(md, md_features.index(fdf)).collect {|x| x.to_i}
             md_sup = getRelSupVal( classes, md_y, md_occ )
-
-            E3_per_class = (Vector.elements(fd_sup) - Vector.elements(md_sup)).to_a
-            puts "Found '#{E3_per_class}.join(',')' E3 across classes for #{fdf}"
-            E3_along_features << E3_per_class.to_gv.mean
-            puts "  => #{E3_along_features.last} (mean)"
+            e3PerClass = (Vector.elements(fd_sup) - Vector.elements(md_sup)).to_a
+            #puts "Found '#{e3PerClass.join(',')}' E3 across classes for #{fdf}"
+            e3AlongFeatures << e3PerClass.to_gv.mean
+            #puts "  => #{e3AlongFeatures.last} (mean)"
           else
-            E3_along_features << nil
+            e3AlongFeatures << nil
           end
         end
       }
-      E3_sum = E3_along_features.to_gv.mean
-      puts "Found '#{E3_sum}' mean across features"
+      e3Sum = e3AlongFeatures.to_gv.mean
+      puts "[#{Time.now.iso8601(4).to_s}] class proportion difference (E3): #{e3Sum}"
       $stdout.flush
 
     rescue Exception => e 
@@ -230,11 +236,17 @@ begin
       if failed == false
         result1 << sum_E1
         result2 << sum_E2
+        result3 << e3Sum
+        result4 << e4Sum
+        result5 << e5Sum
         # save statistics
         statistics = add_statistics(feature_dataset_uri, bbrc_duration, method, i, min_frequency, statistics, subjectid)
       else
         result1 << "NA"
         result2 << "NA"
+        result3 << "NA"
+        result4 << "NA"
+        result5 << "NA"
         # save statistics
         statistics = add_statistics(nil, bbrc_duration, method, i, min_frequency, statistics, subjectid)
       end
@@ -247,7 +259,7 @@ begin
 
       metadata << info
       
-      csv_output = ["#{result1.last},#{result2.last},#{statistics[:min_frequency].last},#{statistics[:min_frequency_per_sample].last},#{statistics[:bbrc_ds_nr_com].last},#{statistics[:bbrc_ds_nr_f].last},#{statistics[:duration].last},#{statistics[:merge_time].last},#{statistics[:n_stripped_mss].last},#{statistics[:n_stripped_cst].last},#{statistics[:min_sampling_support].last},#{statistics[:random_seed].last}"]
+      csv_output = ["#{result1.last},#{result2.last},#{result3.last},#{result4.last},#{result5.last},#{statistics[:min_frequency].last},#{statistics[:min_frequency_per_sample].last},#{statistics[:bbrc_ds_nr_com].last},#{statistics[:bbrc_ds_nr_f].last},#{statistics[:duration].last},#{statistics[:merge_time].last},#{statistics[:n_stripped_mss].last},#{statistics[:n_stripped_cst].last},#{statistics[:min_sampling_support].last},#{statistics[:random_seed].last}"]
       add_string_arr_to_file(csv_file_name , csv_output)
       puts "[#{Time.now.iso8601(4).to_s}] csv output:  #{csv_output.to_s}"
       puts
@@ -268,6 +280,14 @@ begin
   puts "[#{Time.now.iso8601(4).to_s}] result1: #{result1.to_yaml}"
   puts
   puts "[#{Time.now.iso8601(4).to_s}] result2: #{result2.to_yaml}"
+  puts
+  puts "[#{Time.now.iso8601(4).to_s}] result3: #{result3.to_yaml}"
+  puts
+  puts "[#{Time.now.iso8601(4).to_s}] result4: #{result4.to_yaml}"
+  puts
+  puts "[#{Time.now.iso8601(4).to_s}] result5: #{result5.to_yaml}"
+
+
   $stdout.flush
 
 rescue Exception => e
