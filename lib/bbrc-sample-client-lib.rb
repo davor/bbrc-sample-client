@@ -64,8 +64,8 @@ end
 # @return true or false
 # @example 
 def check_params(args)
-  if args[2].to_i <= 2
-    puts "num_boots must be a natural number higher than 30"
+  if args[2].to_i <= 0
+    puts "num_boots must be a natural number >0"
     wrong_arg = true
   end
 
@@ -303,15 +303,17 @@ end
 # Get pValues from dataset
 # @return Hash SMARTS and their pValues
 # @example 
-def get_pValues(ds_uri, subjectid)
+def get_pValuesEffects(ds_uri, subjectid)
   pValues = {}
+  effects = {}
   ds = OpenTox::Dataset.find(ds_uri, subjectid)
   ds.features.each do |f, values|
     if values[RDF::type].include?(OT.Substructure)
       pValues[values[OT::smarts]] = values[OT::pValue]
+      effects[values[OT::effect]] = values[OT::effect]
     end
   end
-  return pValues
+  return pValues, effects
 end
 
 # Calulate E1 and E2 from two hashes ()
